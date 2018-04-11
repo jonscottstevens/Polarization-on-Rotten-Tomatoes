@@ -90,6 +90,7 @@ titleWords <- tolower(strsplit(paste(scores$Movie, collapse=" "), split=" ")[[1]
 
 # A word cloud to compare movies where critic scores are higher than user (positive delta) to movies where user scores are higher (negative delta)
 
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c(titleWords), filter=4)
 positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c(titleWords), filter=4)
 positiveUnique <- subset(positive, is.element(word, subset(negative, freq>1)$word)==FALSE) # look only at words mostly unique to positive set
 wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 150, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
