@@ -113,7 +113,7 @@ scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw",
 # Correlation tests
 
 cor.test(scores$ReviewDelta, scores$reviewsSJW)
-cor.test(scores$ReviewDelta, scores$UserReviews)
+cor.test(scores$UserReviews, scores$reviewsSJW)
 
 # Plots
 
