@@ -1,0 +1,918 @@
+install.packages(lmer)
+install.packages("lme4")
+library(lme4)
+require(lmerTest)
+install.packages("lmerTest")
+require(lmerTest)
+summary(lmer(scores, ))
+scores
+summary(aov(ReviewDelta~UserReviews*logReviewsSJW, data=scores))
+summary(aov(ReviewDelta~UserReviews+logReviewsSJW, data=scores))
+cor.test(scores$ReviewDelta, scores$UserReviews)
+cor.test(subset(Scores, NumReviews>100)$ReviewDelta, subset(Scores, NumReviews>100)$UserReviews)
+cor.test(subset(scores, NumReviews>100)$ReviewDelta, subset(scores, NumReviews>100)$UserReviews)
+cor.test(subset(scores, NumReviews>100)$ReviewDelta, subset(scores, NumReviews>100)$logReviewsSJW)
+cor.test(subset(scores, NumReviews>100)$UserReviews, subset(scores, NumReviews>100)$logReviewsSJW)
+summary(aov(ReviewDelta~UserReviews*logReviewsSJW, data=subset(scores, NumReviews>100)))
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews
+scores
+summary(aov(ReviewDelta~UserReviews*reviewsSJW, data=subset(scores, NumReviews>100)))
+summary(aov(ReviewDelta~UserReviews*reviewsSJW, data=scores))
+cor.test(scores$ReviewDelta, scores$UserReviews)
+cor.test(scores$ReviewDelta, scores$reviewsSJW)
+summary(aov(ReviewDelta~reviewsSJW*UserReviews, data=scores))
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$ReviewDelta, scores$UserReviews)#
+summary(aov(ReviewDelta~UserReviews*reviewsSJW, data=scores))#
+summary(aov(ReviewDelta~reviewsSJW*UserReviews, data=scores))#
+#
+cor.test(scores$logReviewsSJW, scores$FloorCount)
+ggplot(scores, aes(reviewsSJW, ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW+.01), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW+.1), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW+.01), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(FloorCount), log(reviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+ggplot(scores, aes(log(reviewsSJW+.001), log(ReviewDelta))) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(reviewsSJW+.001), log(ReviewDelta+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+# Finally, let's look at some correlations#
+#
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+#
+# Correlation tests and ANOVAs#
+#
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$ReviewDelta, scores$UserReviews)#
+summary(aov(ReviewDelta~UserReviews*reviewsSJW, data=scores))#
+summary(aov(ReviewDelta~reviewsSJW*UserReviews, data=scores))#
+#
+cor.test(scores$logReviewsSJW, scores$FloorCount)#
+#
+# Plots#
+#
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")#
+#
+ggplot(scores, aes(log(FloorCount), log(reviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")#
+# Write a csv of combined movie data with delta scores for each individual review, to be used in machine learning exercise#
+#
+combined$CriticScore <- sapply(combined$Movie, function(m){return(subset(scores, Movie==m)$Critic)})#
+combined$Delta <- combined$CriticScore - combined$Rating#
+#
+write.csv(combined, "RTDelta.csv")
+scores
+cor.test(scores$reviewsSJW, scores$FloorCount)
+density <- ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+makeCloud(movies=c("The Last Jedi"), ignore=c("movie", "film", "star", "wars"))
+makeCloud(movies=c("The Shape of Water"), ignore=c("movie", "film", "shape", "water"))
+makeCloud(movies=negative, ignore=c("movie", "film", "star", "book"), filter=5)
+makeCloud(movies=positive, ignore=c("movie", "film", "star", "book"), filter=5)
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+ggplot(scores, aes(log(FloorCount), log(reviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")#
+#
+# Look first at two films with the same RT critic score average, but very different user reviews -- Star Wars: The Last Jedi and Black Panther#
+twoFilms <- subset(combined, is.element(Movie, c("The Last Jedi", "Black Panther")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+# To do word clouds we'll need the tm (text mining) package and the wordcloud package#
+#
+library(tm)#
+library(wordcloud)#
+#
+# A function for creating a wordcloud-ready data frame from the user reviews of any set of movies; may specify review ratings (0.5 stars only by default)#
+#
+prepareForCloud <- function(movies, ratings=c(0.5), ignore=c(), filter=0){#
+	# Create a subset of the combined data set#
+	df <- subset(combined, is.element(Movie, movies) & is.element(Rating, ratings))#
+	# Create a tm corpus object#
+	dfCorpus <- Corpus(VectorSource(df$Text))#
+#
+	# A long stop word list#
+	source("stopWords.r")#
+#
+	# Add other words we don't want in our word cloud, which are given by the 'ignore' parameter#
+	stopWords<-c(stopWords, ignore)#
+#
+	# Create a term matrix#
+	dfMatrix <- TermDocumentMatrix(dfCorpus, control = list(removePunctuation = TRUE, stopwords = stopWords, removeNumbers = TRUE, tolower = TRUE))#
+#
+	# Create a new data frame for wordcloud#
+#
+	dfWordFreqs <- sort(rowSums(as.matrix(dfMatrix)), decreasing=TRUE)#
+	newDF <- data.frame(word=names(dfWordFreqs), freq=dfWordFreqs)#
+	# The 'filter' parameter excludes words that are mostly specific to one film, requiring a word to occur at least n times in reviews of other films#
+	if(filter>0){#
+		secondaryOccurrences <- function(w){#
+			compare <- subset(combined, is.element(Rating, ratings))#
+			occurrenceSummary <- summary(compare[grep(tolower(w), tolower(compare$Text)), "Movie"])#
+			return(sum(occurrenceSummary) - max(occurrenceSummary))#
+		}#
+		newDF$secondary <- sapply(newDF$word, secondaryOccurrences)#
+		newDF <- subset(newDF, secondary > filter)#
+	}#
+#
+	# Return the data frame#
+	return(newDF)#
+	#wordcloud(newDF$word, newDF$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+}#
+#
+# Word cloud for 0.5-star user reviews of The Last Jedi#
+#
+tlj <- prepareForCloud(movies=c("The Last Jedi"), ignore=c("movie", "film", "star", "wars"))#
+wordcloud(tlj$word, tlj$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+# Word cloud for 0.5-star user reviews of The Shape of Water, the movie in the data set with the second highest difference between critics and users#
+#
+tsow <- prepareForCloud(movies=c("The Shape of Water"), ignore=c("movie", "film", "shape", "water"))#
+wordcloud(tsow$word, tsow$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews#
+#
+# Make word clouds for all movies where critic scores are higher than user (positive delta) vs. where user scores are higher (negative delta)#
+#
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c("movie", "film", "star", "book"), filter=5)#
+wordcloud(negative$word, negative $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c("movie", "film", "star", "book"), filter=5)#
+wordcloud(positive$word, positive $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+# Finally, let's look at some correlations#
+#
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+#
+# Correlation tests#
+#
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$ReviewDelta, scores$UserReviews)#
+cor.test(scores$reviewsSJW, scores$FloorCount)
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of 0.5-star user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")#
+#
+ggplot(scores, aes(log(FloorCount), log(reviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+# Write a csv of combined movie data with delta scores for each individual review, to be used in machine learning exercise#
+#
+combined$CriticScore <- sapply(combined$Movie, function(m){return(subset(scores, Movie==m)$Critic)})#
+combined$Delta <- combined$CriticScore - combined$Rating#
+#
+write.csv(combined, "RTDelta.csv")
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+scores
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+scores
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")#
+#
+# Look first at two films with the same RT critic score average, but very different user reviews -- Star Wars: The Last Jedi and Black Panther#
+twoFilms <- subset(combined, is.element(Movie, c("The Last Jedi", "Black Panther")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+scores
+ggplot(subset(combined, Movie=="Tomb Raider"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+scores
+ggplot(subset(combined, Movie=="Ready Player One"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(subset(combined, Movie=="A Wrinkle in Time"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(subset(combined, Movie=="Ferdinand"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(subset(combined, Movie=="Jumanji"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(subset(combined, Movie=="The Death of Stalin"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(subset(combined, Movie=="Peter Rabbit"), aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+twoFilms <- subset(combined, is.element(Movie, c("The Death of Stalin", "Black Panther", "Peter Rabbit")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+twoFilms <- subset(combined, is.element(Movie, c("Black Panther", "Sherlock Gnomes")))
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+scores
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})
+scores
+twoFilms <- subset(combined, is.element(Movie, c("Black Panther", "Peter Rabbit")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+twoFilms <- subset(combined, is.element(Movie, c("Black Panther", "A Wrinkle in Time")))
+> ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+twoFilms <- subset(combined, is.element(Movie, c("Black Panther", "The Shape of Water", "Annihilation")))
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+twoFilms <- subset(combined, is.element(Movie, c("Black Panther", "Ready Player One")))
+twoFilms <- subset(combined, is.element(Movie, c("Black Panther", "Ready Player One")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+combined$CriticAdvantage <- sapply(combined$Movie, function(m){return(subset(scores, Movie==m)$ReviewDelta > 0})
+combined$CriticAdvantage <- sapply(combined$Movie, function(m){return(subset(scores, Movie==m)$ReviewDelta > 0)}
+)
+combined$CriticAdvantage <- sapply(combined$Movie, function(m){return(subset(scores, Movie==m)$ReviewDelta > 0)})
+head(combined)
+ggplot(combined, aes(Rating))+ geom_density(aes(fill = CriticAdvantage), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+scores
+twoFilmsB <- subset(combined, is.element(Movie, c("Sherlock Gnomes", "Black Panther")))#
+ggplot(twoFilmsB, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")#
+#
+# Look first at two films with the same RT critic score average, but very different user reviews -- Star Wars: The Last Jedi and Black Panther#
+twoFilms <- subset(combined, is.element(Movie, c("The Last Jedi", "Black Panther")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+#
+# Now let's look at two films with similar user review scores, but very different critic reviews -- Sherlock Gnomes and Black Panther#
+#
+twoFilmsB <- subset(combined, is.element(Movie, c("Sherlock Gnomes", "Black Panther")))#
+ggplot(twoFilmsB, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+# To do word clouds we'll need the tm (text mining) package and the wordcloud package#
+#
+library(tm)#
+library(wordcloud)#
+#
+# A function for creating a wordcloud-ready data frame from the user reviews of any set of movies; may specify review ratings (0.5 stars only by default)#
+#
+prepareForCloud <- function(movies, ratings=c(0.5), ignore=c(), filter=0){#
+	# Create a subset of the combined data set#
+	df <- subset(combined, is.element(Movie, movies) & is.element(Rating, ratings))#
+	# Create a tm corpus object#
+	dfCorpus <- Corpus(VectorSource(df$Text))#
+#
+	# A long stop word list#
+	source("stopWords.r")#
+#
+	# Add other words we don't want in our word cloud, which are given by the 'ignore' parameter#
+	stopWords<-c(stopWords, ignore)#
+#
+	# Create a term matrix#
+	dfMatrix <- TermDocumentMatrix(dfCorpus, control = list(removePunctuation = TRUE, stopwords = stopWords, removeNumbers = TRUE, tolower = TRUE))#
+#
+	# Create a new data frame for wordcloud#
+#
+	dfWordFreqs <- sort(rowSums(as.matrix(dfMatrix)), decreasing=TRUE)#
+	newDF <- data.frame(word=names(dfWordFreqs), freq=dfWordFreqs)#
+	# The 'filter' parameter excludes words that are mostly specific to one film, requiring a word to occur at least n times in reviews of other films#
+	if(filter>0){#
+		secondaryOccurrences <- function(w){#
+			compare <- subset(combined, is.element(Rating, ratings))#
+			occurrenceSummary <- summary(compare[grep(tolower(w), tolower(compare$Text)), "Movie"])#
+			return(sum(occurrenceSummary) - max(occurrenceSummary))#
+		}#
+		newDF$secondary <- sapply(newDF$word, secondaryOccurrences)#
+		newDF <- subset(newDF, secondary > filter)#
+	}#
+#
+	# Return the data frame#
+	return(newDF)#
+	#wordcloud(newDF$word, newDF$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+}
+tlj <- prepareForCloud(movies=c("The Last Jedi"), ignore=c("movie", "film", "star", "wars"))#
+wordcloud(tlj$word, tlj$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+tlj2 <- prepareForCloud(movies=c("The Last Jedi"), ignore=c("movie", "film", "star", "wars"), filter=5)#
+wordcloud(tlj$word, tlj$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(tlj2$word, tlj2$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+scores
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+scores
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+scores
+# Finally, let's look at some correlations#
+#
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+#
+# Correlation tests#
+#
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$ReviewDelta, scores$UserReviews)#
+cor.test(scores$reviewsSJW, scores$FloorCount)
+scores
+cor.test(scores$UserReviews, scores$FloorCount)#
+cor.test(scores$ReviewDelta, scores$FloorCount)
+cor.test(scores$UserReviews, scores$FloorCount/scores$NumReviews)#
+cor.test(scores$ReviewDelta, scores$FloorCount/scores$NumReviews)
+lm(FloorCount~ReviewDelta*UserReviews, scores)
+summary(lm(FloorCount~ReviewDelta*UserReviews, scores))
+summary(lm(FloorCount~UserReviews*ReviewDelta, scores))
+summary(lm(FloorCount/NumReviews~UserReviews*ReviewDelta, scores))
+summary(glm(FloorCount/NumReviews~UserReviews*ReviewDelta, scores))
+summary(lm(FloorCount/NumReviews~UserReviews*ReviewDelta, scores))
+summary(lm(FloorCount/NumReviews~UserReviews*(UserReviews+1), scores))
+summary(lm(FloorCount/NumReviews~UserReviews*(UserReviews), scores))
+summary(lm(FloorCount/NumReviews~UserReviews*ReviewDelta, scores))
+scores$test<-scores$FloorCount
+summary(lm(FloorCount/NumReviews~test*ReviewDelta, scores))
+scores$test<-scores$FloorCount/scores$NumReviews
+summary(lm(FloorCount/NumReviews~test*ReviewDelta, scores))
+summary(lm(FloorCount/NumReviews~UserReviews*ReviewDelta, scores))
+summary(lm(FloorCount/NumReviews~UserReviews, scores))
+summary(lm(FloorCount/NumReviews~ReviewDelta, scores))
+summary(lm(FloorCount/NumReviews~UserReviews*ReviewDelta, scores))
+cor.test(scores$UserReviews, scores$ReviewDelta)
+chol(scores)
+chol(cor(scores))
+scores
+chol(cor(scores[,2:]))
+chol(cor(scores[:, 2:]))
+chol(cor(scores[,2]))
+scores[,2]
+scores[,2:length(scores)]
+cor(scores[,2:length(scores)])
+cho(cor(scores[,2:length(scores)]))
+chol(cor(scores[,2:length(scores)]))
+scores
+cor.test(scores$Critic, scores$UserReviews)
+cor.test(scores$Critic, scores$reviewsSJW)
+cor.test(scores$Critic, scores$FloorCount)
+cor.test(scores$Critic, scores$FloorCount/scores$NumReviews)
+67/965
+1/7
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating<=1)))})
+scores
+16/75
+231/965
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})
+scores
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$ReviewDelta, scores$UserReviews)#
+cor.test(scores$reviewsSJW, scores$FloorCount)
+scores
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$reviewsSJW, scores$FloorCount)
+cor.test(scores$ReviewDelta, scores$reviewsSJW)
+cor.test(scores$ReviewDelta, scores$UserReviews)
+0.7545648**2
+-0.7196561**2
+(-0.7196561)**2
+cor.test(scores$reviewsSJW, scores$FloorCount)
+0.8304021 **2
+summary(lm(FloorCount/NumReviews~ReviewDelta, scores))
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")#
+#
+# Look first at two films with the same RT critic score average, but very different user reviews -- Star Wars: The Last Jedi and Black Panther#
+twoFilms <- subset(combined, is.element(Movie, c("The Last Jedi", "Black Panther")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+#
+# Now let's look at two films with similar user review scores, but very different critic reviews -- Sherlock Gnomes and Black Panther#
+#
+twoFilmsB <- subset(combined, is.element(Movie, c("Sherlock Gnomes", "Black Panther")))#
+ggplot(twoFilmsB, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+# To do word clouds we'll need the tm (text mining) package and the wordcloud package#
+#
+library(tm)#
+library(wordcloud)#
+#
+# A function for creating a wordcloud-ready data frame from the user reviews of any set of movies; may specify review ratings (0.5 stars only by default)#
+#
+prepareForCloud <- function(movies, ratings=c(0.5), ignore=c(), filter=0){#
+	# Create a subset of the combined data set#
+	df <- subset(combined, is.element(Movie, movies) & is.element(Rating, ratings))#
+	# Create a tm corpus object#
+	dfCorpus <- Corpus(VectorSource(df$Text))#
+#
+	# A long stop word list#
+	source("stopWords.r")#
+#
+	# Add other words we don't want in our word cloud, which are given by the 'ignore' parameter#
+	stopWords<-c(stopWords, ignore)#
+#
+	# Create a term matrix#
+	dfMatrix <- TermDocumentMatrix(dfCorpus, control = list(removePunctuation = TRUE, stopwords = stopWords, removeNumbers = TRUE, tolower = TRUE))#
+#
+	# Create a new data frame for wordcloud#
+#
+	dfWordFreqs <- sort(rowSums(as.matrix(dfMatrix)), decreasing=TRUE)#
+	newDF <- data.frame(word=names(dfWordFreqs), freq=dfWordFreqs)#
+	# The 'filter' parameter excludes words that are mostly specific to one film, requiring a word to occur at least n times in reviews of other films#
+	if(filter>0){#
+		secondaryOccurrences <- function(w){#
+			compare <- subset(combined, is.element(Rating, ratings))#
+			occurrenceSummary <- summary(compare[grep(tolower(w), tolower(compare$Text)), "Movie"])#
+			return(sum(occurrenceSummary) - max(occurrenceSummary))#
+		}#
+		newDF$secondary <- sapply(newDF$word, secondaryOccurrences)#
+		newDF <- subset(newDF, secondary > filter)#
+	}#
+#
+	# Return the data frame#
+	return(newDF)#
+	#wordcloud(newDF$word, newDF$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+}
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+paste(scores$Movie)
+paste(paste(scores$Movie))
+(scores$Movie)
+paste(scores$Movie, collapse=" ")
+paste(paste(scores$Movie, collapse=" "), sep=" ")
+paste(scores$Movie, collapse=" ")
+strsplit(paste(scores$Movie, collapse=" "))
+strsplit(paste(scores$Movie, collapse=" "), split=" ")
+strsplit(paste(scores$Movie, collapse=" "), split=" ")[[1]]
+tolower(strsplit(paste(scores$Movie, collapse=" "), split=" ")[[1]])
+# We'll want to ignore words in the titles of the movies#
+titleWords <- tolower(strsplit(paste(scores$Movie, collapse=" "), split=" ")[[1]])#
+#
+# Make word clouds for all movies where critic scores are higher than user (positive delta) vs. where user scores are higher (negative delta)#
+#
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c("movie", "film", "book", titleWords), filter=5)#
+wordcloud(negative$word, negative $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(negative$word, negative $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c("movie", "film", "book", titleWords), filter=5)#
+wordcloud(positive$word, positive $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c("movie", "film", "book", "star", titleWords), filter=5)#
+wordcloud(negative$word, negative $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c("movie", "film", "book", "star", titleWords), filter=5)#
+wordcloud(positive$word, positive $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+numReviews()
+compare <- subset(combined, is.element(Rating, c(0.5)))#
+occurrenceSummary <- summary(compare[grep(tolower("agenda"), tolower(compare$Text)), "Movie"])#
+print(sum(occurrenceSummary) - max(occurrenceSummary))
+compare <- subset(combined, is.element(Rating, c(0.5)))#
+occurrenceSummary <- summary(compare[grep(tolower("liberal"), tolower(compare$Text)), "Movie"])#
+print(sum(occurrenceSummary) - max(occurrenceSummary))
+compare <- subset(combined, is.element(Rating, c(0.5)))#
+occurrenceSummary <- summary(compare[grep(tolower("feminist"), tolower(compare$Text)), "Movie"])#
+print(sum(occurrenceSummary) - max(occurrenceSummary))
+compare <- subset(combined, is.element(Rating, c(0.5)))#
+occurrenceSummary <- summary(compare[grep(tolower("feminism"), tolower(compare$Text)), "Movie"])#
+print(sum(occurrenceSummary) - max(occurrenceSummary))
+compare <- subset(combined, is.element(Rating, c(0.5)))#
+occurrenceSummary <- summary(compare[grep(tolower("propaganda"), tolower(compare$Text)), "Movie"])#
+print(sum(occurrenceSummary) - max(occurrenceSummary))
+prepareForCloud <- function(movies, ratings=c(0.5), ignore=c(), filter=0){#
+	# Create a subset of the combined data set#
+	df <- subset(combined, is.element(Movie, movies) & is.element(Rating, ratings))#
+	# Create a tm corpus object#
+	dfCorpus <- Corpus(VectorSource(df$Text))#
+#
+	# A long stop word list#
+	source("stopWords.r")#
+#
+	# Add other words we don't want in our word cloud, which are given by the 'ignore' parameter#
+	stopWords<-c(stopWords, ignore)#
+#
+	# Create a term matrix#
+	dfMatrix <- TermDocumentMatrix(dfCorpus, control = list(removePunctuation = TRUE, stopwords = stopWords, removeNumbers = TRUE, tolower = TRUE))#
+#
+	# Create a new data frame for wordcloud#
+#
+	dfWordFreqs <- sort(rowSums(as.matrix(dfMatrix)), decreasing=TRUE)#
+	newDF <- data.frame(word=names(dfWordFreqs), freq=dfWordFreqs)#
+	# The 'filter' parameter excludes words that are mostly specific to one film, requiring a word to occur at least n times in reviews of other films#
+	if(filter>0){#
+		secondaryOccurrences <- function(w){#
+			compare <- subset(combined, is.element(Rating, ratings))#
+			occurrenceSummary <- summary(compare[grep(tolower(w), tolower(compare$Text)), "Movie"])#
+			return(sum(occurrenceSummary) - max(occurrenceSummary))#
+		}#
+		newDF$secondary <- sapply(newDF$word, secondaryOccurrences)#
+		newDF <- subset(newDF, secondary >= filter)#
+	}#
+#
+	# Return the data frame#
+	return(newDF)#
+}
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c("movie", "film", "book", "star", titleWords), filter=5)#
+wordcloud(negative$word, negative $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c("movie", "film", "book", "star", titleWords), filter=5)#
+wordcloud(positive$word, positive $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(negative$word, negative $freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+negativeUnique <- subset(negative, is.element(word, positive$word)==FALSE)#
+wordcloud(negativeUnique$word, negativeUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+positiveUnique <- subset(positive, is.element(word, negative$word)==FALSE)#
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c("movie", "film", "book", "star", titleWords), filter=5)#
+#wordcloud(negative$word, negative$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c("movie", "film", "book", "star", titleWords), filter=5)
+positiveUnique <- subset(positive, subset(negative, word==word)$freq<2)
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+positiveUnique <- subset(positive, is.element(word, subset(negative, freq>1)$word)==FALSE)#
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3,2))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3,1))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(2.5,1))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(2.8,1))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 90, random.order = FALSE, colors=brewer.pal(8, "Dark2"))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3,0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3,0.8))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3,0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3,0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c("movie", "film", titleWords), filter=5)#
+positiveUnique <- subset(positive, is.element(word, subset(negative, freq>0)$word)==FALSE)#
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+negative <- prepareForCloud(movies=subset(scores, ReviewDelta<0)$Movie, ignore=c(titleWords), filter=5)#
+negativeUnique <- subset(negative, is.element(word, subset(positive, freq>1)$word)==FALSE) # look only at words mostly unique to negative set#
+wordcloud(negativeUnique$word, negativeUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))#
+#
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c(titleWords), filter=5)#
+positiveUnique <- subset(positive, is.element(word, subset(negative, freq>1)$word)==FALSE) # look only at words mostly unique to positive set#
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c(titleWords), filter=4)#
+positiveUnique <- subset(positive, is.element(word, subset(negative, freq>1)$word)==FALSE) # look only at words mostly unique to positive set#
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 100, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 150, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating==0.5)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+# Finally, let's look at some correlations#
+#
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating==0.5)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+scores
+cor.test(scores$badReviewsSJW, scores$FloorCount)
+scores
+ggplot(scores, aes(log(FloorCount), log(badReviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+library(ggplot2)
+ggplot(scores, aes(log(FloorCount), log(badReviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+ggplot(scores, aes(log(FloorCount), log(reviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of all reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+theme_set(theme_classic())
+ggplot(scores, aes(log(FloorCount), log(reviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of all reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+ggplot(scores, aes(log(FloorCount), log(badReviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+ggplot(scores, aes((FloorCount),(badReviewsSJW))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+ggplot(scores, aes(log(FloorCount), log(badReviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+exp(6)
+scores
+ggplot(scores, aes((FloorCount), log(badReviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+scores
+ggplot(scores, aes(log(FloorCount), log(badReviewsSJW+.001))) + geom_point() + geom_smooth(method="lm") + labs(title="Proportion of 0.5-star reviews containing the word 'SJW'", subtitle="By how many 0.5-star reviews there are", x="Log # of 0.5-star reviews", y="Log proportion containing 'SJW'")
+scoes
+scores
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")#
+#
+# Look first at two films with the same RT critic score average, but very different user reviews -- Star Wars: The Last Jedi and Black Panther#
+twoFilms <- subset(combined, is.element(Movie, c("The Last Jedi", "Black Panther")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews
+# Finally, let's look at some correlations#
+#
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Total number of 0.5-star reviews#
+scores$FloorCount <- sapply(scores$Movie, function(m){return(sum(as.numeric(subset(combined, Movie==m)$Rating==0.5)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating==0.5)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating<=1)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+scores
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating<2)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+scores
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating<=2)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+scores
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating<3)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+scores
+countBad <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie&Rating<=3)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$badReviewsSJW <- sapply(scores$Movie, function(x){return(countBad("sjw", x))}) / scores$FloorCount
+scores
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")
+# Read the combined user review data set for 16 top box office movies on Rotten Tomatoes#
+combined <- read.csv("rottenTomatoesUserReviews.csv")#
+#
+# Convert user review text to unicode#
+combined$Text <- iconv(combined$Text, to="UTF-8")#
+#
+# Look first at two films with the same RT critic score average, but very different user reviews -- Star Wars: The Last Jedi and Black Panther#
+twoFilms <- subset(combined, is.element(Movie, c("The Last Jedi", "Black Panther")))#
+#
+# We're using ggplot2 with classic theme#
+#
+library(ggplot2)#
+theme_set(theme_classic())#
+#
+# A density plot of user review scores (0.5 -- 5 stars) for TLJ and BP#
+ggplot(twoFilms, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+#
+# Now let's look at two films with similar user review scores, but very different critic reviews -- Sherlock Gnomes and Black Panther#
+#
+twoFilmsB <- subset(combined, is.element(Movie, c("Sherlock Gnomes", "Black Panther")))#
+ggplot(twoFilmsB, aes(Rating))+ geom_density(aes(fill = Movie), alpha=0.5) + labs(title="Density plot", subtitle="Rotten Tomatoes audience scores", x="Audience Score", y="Density")#
+# To do word clouds we'll need the tm (text mining) package and the wordcloud package#
+#
+library(tm)#
+library(wordcloud)#
+#
+# A function for creating a wordcloud-ready data frame from the user reviews of any set of movies; may specify review ratings (0.5 stars only by default)#
+#
+prepareForCloud <- function(movies, ratings=c(0.5), ignore=c(), filter=0){#
+	# Create a subset of the combined data set#
+	df <- subset(combined, is.element(Movie, movies) & is.element(Rating, ratings))#
+	# Create a tm corpus object#
+	dfCorpus <- Corpus(VectorSource(df$Text))#
+#
+	# A long stop word list#
+	source("stopWords.r")#
+#
+	# Add other words we don't want in our word cloud, which are given by the 'ignore' parameter#
+	stopWords<-c(stopWords, ignore)#
+#
+	# Create a term matrix#
+	dfMatrix <- TermDocumentMatrix(dfCorpus, control = list(removePunctuation = TRUE, stopwords = stopWords, removeNumbers = TRUE, tolower = TRUE))#
+#
+	# Create a new data frame for wordcloud#
+#
+	dfWordFreqs <- sort(rowSums(as.matrix(dfMatrix)), decreasing=TRUE)#
+	newDF <- data.frame(word=names(dfWordFreqs), freq=dfWordFreqs)#
+	# The 'filter' parameter excludes words that are mostly specific to one film, requiring a word to occur at least n times in reviews of other films#
+	if(filter>0){#
+		secondaryOccurrences <- function(w){#
+			compare <- subset(combined, is.element(Rating, ratings))#
+			occurrenceSummary <- summary(compare[grep(tolower(w), tolower(compare$Text)), "Movie"])#
+			return(sum(occurrenceSummary) - max(occurrenceSummary))#
+		}#
+		newDF$secondary <- sapply(newDF$word, secondaryOccurrences)#
+		newDF <- subset(newDF, secondary >= filter)#
+	}#
+#
+	# Return the data frame#
+	return(newDF)#
+}#
+#
+# Word cloud for 0.5-star user reviews of The Last Jedi#
+#
+tlj <- prepareForCloud(movies=c("The Last Jedi"), ignore=c("movie", "film", "star", "wars"))#
+wordcloud(tlj$word, tlj$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+# Word cloud for 0.5-star user reviews of The Shape of Water, the movie in the data set with the second highest difference between critics and users#
+#
+tsow <- prepareForCloud(movies=c("The Shape of Water"), ignore=c("movie", "film", "shape", "water"))#
+wordcloud(tsow$word, tsow$freq, max.words = 180, random.order = FALSE, colors=brewer.pal(8, "Dark2"))#
+#
+# Load data on critic scores#
+scores <- read.csv("scores.csv")#
+#
+# Calculate difference between average critic score and average user score (the delta score) for each movie#
+#
+library(dplyr)#
+reviewSummary <- summarize(group_by(combined, Movie), Rating = round(mean(Rating), 1))#
+scores$UserReviews <- sapply(scores$Movie, function(m){return(subset(reviewSummary, Movie==m)$Rating)})#
+scores$ReviewDelta <- scores$Critic - scores$UserReviews#
+#
+# We'll want to ignore words in the titles of the movies#
+titleWords <- tolower(strsplit(paste(scores$Movie, collapse=" "), split=" ")[[1]])#
+#
+# A word cloud to compare movies where critic scores are higher than user (positive delta) to movies where user scores are higher (negative delta)#
+#
+positive <- prepareForCloud(movies=subset(scores, ReviewDelta>=0)$Movie, ignore=c(titleWords), filter=4)#
+positiveUnique <- subset(positive, is.element(word, subset(negative, freq>1)$word)==FALSE) # look only at words mostly unique to positive set#
+wordcloud(positiveUnique$word, positiveUnique$freq, max.words = 150, random.order = FALSE, colors=brewer.pal(8, "Dark2"), scale=c(3, 0.5))#
+# Finally, let's look at some correlations#
+#
+# Total number of user reviews for each movie#
+scores$NumReviews <- sapply(scores$Movie, function(m){return(nrow(subset(combined, Movie==m)))})#
+#
+# Log proportion of reviews that contain the word "SJW"#
+#
+clean <- function(r){return(gsub("[[:punct:]]", "", tolower(iconv(r, to="UTF-8"))))} # lowercase, punctuation-free unicode#
+contains <- function(r, w){return(grepl(tolower(w), clean(r)))} # whether a given review contains a given word#
+countReviews <- function(word, movie){return(sum(sapply(subset(combined, Movie==movie)$Text, function(x){return(as.numeric(contains(x, word)))})))}#
+scores$reviewsSJW <- sapply(scores$Movie, function(x){return(countReviews("sjw", x))}) / scores$NumReviews#
+# Correlation tests#
+#
+cor.test(scores$ReviewDelta, scores$reviewsSJW)#
+cor.test(scores$ReviewDelta, scores$UserReviews)#
+#
+# Plots#
+#
+ggplot(scores, aes(log(reviewsSJW+.001), ReviewDelta)) + geom_point() + geom_smooth(method="lm") + labs(title="Difference in RT user vs. critic review scores", subtitle="By proportion of user reviews containing the word 'SJW'", x="Log proportion of reviews containing word 'SJW'", y="Critic score - user score")#
+# Write a csv of combined movie data with delta scores for each individual review, to be used in machine learning exercise#
+#
+combined$CriticScore <- sapply(combined$Movie, function(m){return(subset(scores, Movie==m)$Critic)})#
+combined$Delta <- combined$CriticScore - combined$Rating#
+#
+write.csv(combined, "RTDelta.csv")
+save.image()
